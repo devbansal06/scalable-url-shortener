@@ -1,0 +1,13 @@
+node_modules/
+
+.env
+
+logs/
+
+coverage/
+
+dist/
+
+.vscode/
+
+.DS_Store

@@ -1,0 +1,39 @@
+{
+  "name": "scalable-url-shortener",
+  "version": "1.0.0",
+  "description": "Production-ready URL Shortener built with Node.js, Express, MongoDB, Redis and JWT Authentication.",
+  "homepage": "https://github.com/devbansal06/scalable-url-shortener#readme",
+  "bugs": {
+    "url": "https://github.com/devbansal06/scalable-url-shortener/issues"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "mongodb",
+    "redis",
+    "jwt",
+    "url-shortener",
+    "backend",
+    "rest-api"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devbansal06/scalable-url-shortener.git"
+  },
+  "license": "MIT",
+  "author": "Dev Bansal",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.7.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
