@@ -4,11 +4,19 @@ const express = require("express");
 
 const connectDB = require("./src/database/connectDB");
 
+const urlRoutes = require("./src/routes/url.routes");
+
+const redirectRoutes = require("./src/routes/redirect.routes");
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+app.use("/api/v1/urls", urlRoutes);
+
+app.use("/", redirectRoutes);
 
 app.get("/",(req,res)=>{
     res.json({
