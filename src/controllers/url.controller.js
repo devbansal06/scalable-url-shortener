@@ -4,13 +4,30 @@ const Url = require("../models/Url");
 
 const createShortUrl = async (req, res) => {
     try {
-        const { originalUrl } = req.body;
+        const { originalUrl, expiresAt } = req.body;
 
         if (!originalUrl) {
             return res.status(400).json({
                 success: false,
                 message: "Original URL is required",
             });
+        }
+        let expireDate = null;
+        if (expiresAt !== undefined && expiresAt !== null) {
+
+            expireDate = new Date(expiresAt);
+
+            if (Number.isNaN(expireDate.getTime()))
+                return res.status(400).json({
+                    success: false,
+                    message: "Expire date is not in correct format",
+                });
+
+            if (expireDate <= new Date())
+                return res.status(400).json({
+                    success: false,
+                    message: "Expire date is less than the current date",
+                });
         }
 
         try {
@@ -38,6 +55,7 @@ const createShortUrl = async (req, res) => {
                 url = await Url.create({
                     originalUrl,
                     shortCode,
+                    expiresAt: expireDate,
                 });
             } catch (error) {
                 if (error.code === 11000) {
@@ -63,3 +81,55 @@ const createShortUrl = async (req, res) => {
         });
     }
 };
+
+const redirectUrl = async (req, res) => {
+
+    try {
+        const { shortCode } = req.params;
+
+        const url = await Url.findOne({
+            shortCode
+        })
+
+        if (!url) {
+            return res.status(404).json({
+                success: false,
+                message: "Short URL not found",
+            });
+        }
+
+        if (url.isActive === false) {
+            return res.status(410).json({
+                success: false,
+                message: "URL is inactive",
+            });
+        }
+
+        if (url.expiresAt && url.expiresAt <= Date.now()) {
+            url.isActive = false;
+            await url.save();
+            return res.status(410).json({
+                success: false,
+                message: "URL already expired",
+            });
+        }
+
+        await Url.updateOne(
+            { _id: url._id },
+            { $inc: { clicks: 1 } }
+        );
+
+        return res.redirect(url.originalUrl);
+    }
+    catch (error) {
+        console.error("Redirect error", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        })
+    }
+
+
+};
+
+module.exports = { createShortUrl, redirectUrl };

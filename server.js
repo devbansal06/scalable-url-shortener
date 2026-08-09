@@ -8,6 +8,8 @@ const urlRoutes = require("./src/routes/url.routes");
 
 const redirectRoutes = require("./src/routes/redirect.routes");
 
+const expireUrls = require("./src/jobs/expireUrls");
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -18,23 +20,28 @@ app.use("/api/v1/urls", urlRoutes);
 
 app.use("/", redirectRoutes);
 
-app.get("/",(req,res)=>{
+app.get("/", (req, res) => {
     res.json({
-        success:true,
-        message:"Server is Running....."
+        success: true,
+        message: "Server is Running....."
     });
 });
 
-const startServer = async()=>{
+const startServer = async () => {
 
-   try{
+    try {
         await connectDB();
 
-        app.listen(PORT, ()=>{
-        console.log(`🚀 Server is running on http://localhost:${PORT}`);
+        expireUrls();
+
+        setInterval(expireUrls, 60 * 1000);
+
+        app.listen(PORT, () => {
+            console.log(`🚀 Server is running on http://localhost:${PORT}`);
         });
+
     }
-    catch(error){
+    catch (error) {
         console.error("Failed to start server:", error.message);
     }
 };
