@@ -10,6 +10,8 @@ const redirectRoutes = require("./src/routes/redirect.routes");
 
 const expireUrls = require("./src/jobs/expireUrls");
 
+const { redisClient, connectRedis } = require("./src/database/connectRedis");
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -31,6 +33,24 @@ const startServer = async () => {
 
     try {
         await connectDB();
+
+        try {
+            await connectRedis();
+        } catch (error) {
+            console.error("Redis unavailable. Continuing without Redis.");
+        }
+
+
+        // const redisConnected = await connectRedis();
+
+        // if (!redisConnected) {
+        //     console.log("⚠️ Redis unavailable. Running without Redis.");
+        // }
+
+        // for testing testing only
+        // await redisClient.set("test:key","hello redis");
+        // const value = await redisClient.get("test:key");
+        // console.log("Redis test value", value);
 
         expireUrls();
 

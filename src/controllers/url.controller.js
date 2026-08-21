@@ -2,6 +2,8 @@ const { nanoid } = require("nanoid");
 
 const Url = require("../models/Url");
 
+const { redisClient } = require("../database/connectRedis");
+
 const createShortUrl = async (req, res) => {
     try {
         const { originalUrl, expiresAt } = req.body;
@@ -87,6 +89,52 @@ const redirectUrl = async (req, res) => {
     try {
         const { shortCode } = req.params;
 
+        const cacheKey = `url:${shortCode}`;
+
+        // 1. Check Redis
+        let cachedData = null;
+
+        try {
+            cachedData = await redisClient.get(cacheKey);
+        }
+        catch (error) {
+            console.error("Redis SET falied", error.message);
+        }
+
+        // 2. Cache HIT
+        if (cachedData) {
+            const cachedUrl = JSON.parse(cachedData);
+
+            if (cachedUrl.isActive === false) {
+                await redisClient.del(cacheKey);
+
+                return res.status(410).json({
+                    success: false,
+                    message: "URL is inActive",
+                });
+            }
+
+            if (
+                cachedUrl.expiresAt &&
+                new Date(cachedUrl.expiresAt) <= new Date()
+            ) {
+                await redisClient.del(cacheKey);
+
+                return res.status(410).json({
+                    success: false,
+                    message: "URL has expired",
+                });
+            }
+
+            await Url.updateOne(
+                { shortCode },
+                { $inc: { clicks: 1 } }
+            );
+
+            return res.redirect(cachedUrl.originalUrl);
+        }
+
+        // 3. Cache MISS → MongoDB
         const url = await Url.findOne({
             shortCode
         })
@@ -114,11 +162,44 @@ const redirectUrl = async (req, res) => {
             });
         }
 
+        const cacheData = {
+            originalUrl: url.originalUrl,
+            isActive: url.isActive,
+            expiresAt: url.expiresAt,
+        };
+
+        if (url.expiresAt) {
+            const ttlSeconds = Math.floor(
+                (url.expiresAt.getTime() - Date.now()) / 1000
+            );
+
+            if (ttlSeconds > 0) {
+                try {
+                    await redisClient.set(
+                        cacheKey,
+                        JSON.stringify(cacheData),
+                        {
+                            EX: ttlSeconds,
+                        }
+                    );
+                } catch (error) {
+                    console.error("Redis SET failed:", error.message);
+                }
+            }
+        } else {
+            await redisClient.set(
+                cacheKey,
+                JSON.stringify(cacheData)
+            );
+        }
+
+        // 5. Increment clicks atomically
         await Url.updateOne(
             { _id: url._id },
             { $inc: { clicks: 1 } }
         );
 
+        // 6. Redirect
         return res.redirect(url.originalUrl);
     }
     catch (error) {
