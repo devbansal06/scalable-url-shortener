@@ -209,8 +209,128 @@ const redirectUrl = async (req, res) => {
             message: "Internal Server Error",
         })
     }
-
-
 };
 
-module.exports = { createShortUrl, redirectUrl };
+
+const updateUrl = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+
+        const url = await Url.findById(id);
+
+        if (!url) {
+            return res.status(404).json({
+                success: false,
+                message: "Url not found",
+            });
+        }
+
+        const { originalUrl, expiresAt, isActive } = req.body;
+
+        const updates = {};
+
+
+        //originalUrl
+        if (originalUrl !== undefined) {
+            try {
+                const newurl = new URL(originalUrl);
+
+                if (newurl.protocol !== "http:" && newurl.protocol !== "https:") {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Only HTTP and HTTPS URLs are supported",
+                    });
+                }
+
+                updates.originalUrl = originalUrl;
+
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid URL",
+                });
+            }
+        }
+
+
+        //expiresAt
+        if (expiresAt !== undefined) {
+            if (expiresAt === null) {
+                updates.expiresAt = null;
+            }
+            else {
+                const expireDate = new Date(expiresAt);
+
+                if (Number.isNaN(expireDate.getTime()))
+                    return res.status(400).json({
+                        success: false,
+                        message: "Expire date is not in correct format",
+                    });
+
+                if (expireDate <= new Date())
+                    return res.status(400).json({
+                        success: false,
+                        message: "Expire date is less than the current date",
+                    });
+
+                updates.expiresAt = expireDate;
+            }
+        }
+
+
+        //isActive
+        if (isActive!==undefined) {
+            if(typeof isActive !=="boolean"){
+                return res.status(400).json({
+                    success: false,
+                    message: "isActive must be a boolean",
+                });
+            }
+
+            updates.isActive = isActive;
+        }
+
+
+        // Nothing to update
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No valid fields provided for update",
+            });
+        }
+
+
+        await Url.updateOne(
+            {_id:id},
+            {$set:updates}
+        );
+
+
+        // Invalidate Redis cache
+        try {
+            await redisClient.del(`url:${url.shortCode}`);
+        } catch (error) {
+            console.error("Redis DEL failed:", error.message);
+        }
+
+
+        const updatedUrl = await Url.findById(id);
+
+        return res.status(200).json({
+            success: true,
+            message: "URL updated successfully",
+            data: updatedUrl,
+        });
+        
+    }
+    catch (error) {
+        console.error("Update URL error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
+    }
+}
+module.exports = { createShortUrl, redirectUrl , updateUrl};
