@@ -280,8 +280,8 @@ const updateUrl = async (req, res) => {
 
 
         //isActive
-        if (isActive!==undefined) {
-            if(typeof isActive !=="boolean"){
+        if (isActive !== undefined) {
+            if (typeof isActive !== "boolean") {
                 return res.status(400).json({
                     success: false,
                     message: "isActive must be a boolean",
@@ -302,8 +302,8 @@ const updateUrl = async (req, res) => {
 
 
         await Url.updateOne(
-            {_id:id},
-            {$set:updates}
+            { _id: id },
+            { $set: updates }
         );
 
 
@@ -322,7 +322,7 @@ const updateUrl = async (req, res) => {
             message: "URL updated successfully",
             data: updatedUrl,
         });
-        
+
     }
     catch (error) {
         console.error("Update URL error:", error);
@@ -333,4 +333,47 @@ const updateUrl = async (req, res) => {
         });
     }
 }
-module.exports = { createShortUrl, redirectUrl , updateUrl};
+
+
+const deleteUrl = async (req, res) => {
+    try {
+        const id = req.params.id;
+
+        const url = await Url.findOne(
+            { _id: id }
+        );
+        //const url = await Url.findById(id);  
+
+
+        if (url) {
+            const { shortCode } = url;
+
+            await Url.deleteOne({
+                _id: id
+            });
+
+            try {
+                await redisClient.del(`url:${shortCode}`);
+            } catch (error) {
+                console.error("Redis DEL failed:", error.message);
+            }
+
+            return res.status(204).send();
+        }
+        else {
+            return res.status(404).json({
+                success: false,
+                message: "Url not found",
+            })
+        }
+    } catch (error) {
+        console.error("Delete URL error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
+    }
+};
+
+module.exports = { createShortUrl, redirectUrl, updateUrl, deleteUrl };
