@@ -8,6 +8,8 @@ const urlRoutes = require("./src/routes/url.routes");
 
 const redirectRoutes = require("./src/routes/redirect.routes");
 
+const authRoutes = require("./src/routes/auth.routes");
+
 const expireUrls = require("./src/jobs/expireUrls");
 
 const { redisClient, connectRedis } = require("./src/database/connectRedis");
@@ -17,6 +19,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+app.use("/api/v1/auth", authRoutes);
 
 app.use("/api/v1/urls", urlRoutes);
 
